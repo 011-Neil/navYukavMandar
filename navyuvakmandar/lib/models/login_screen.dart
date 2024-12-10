@@ -22,12 +22,14 @@ class LoginPage extends StatelessWidget {
     // Replace 'api/login' with the actual login endpoint
 
     try {
+      print('inside try');
       final ioc = new HttpClient();
         ioc.badCertificateCallback =
             (X509Certificate cert, String host, int port) => true;
         final http = new IOClient(ioc);
+      print(ioc);
       final response = await http.post(
-        new Uri.https("10.0.2.2:7069","/api/user/login"),
+        new Uri.http("10.0.2.2:5028","/api/user/login"),
         body: jsonEncode({"username": username, "password": password}),
         headers: {'Content-Type': 'application/json'}
       );

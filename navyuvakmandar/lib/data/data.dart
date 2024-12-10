@@ -2,6 +2,9 @@ import 'package:navyuvakmandar/models/date_model.dart';
 import 'package:navyuvakmandar/models/event_type_model.dart';
 import 'package:navyuvakmandar/models/events_model.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
 List<DateModel> getDates() {
   final List<DateModel> dates = [];
   final currentDate = DateTime.now();
@@ -41,30 +44,39 @@ List<EventTypeModel> getEventTypes() {
   return events;
 }
 
-List<EventsModel> getEvents() {
-  final List<EventsModel> events = [];
 
-  // Create EventsModel objects with unique values and add them to the list
-  events.add(EventsModel(
-    imgeAssetPath: "assets/tileimg.png",
-    date: "Jan 12, 2019",
-    desc: "Sports Meet in Galaxy Field",
-    address: "Greenfields, Sector 42, Faridabad",
-  ));
+Future<List<EventsModel>> getEvents() async {
+   print("inside getEvents");
+  final response = await http.get(Uri.parse('http://10.0.2.2:5028/api/eventDetails'));
 
-  events.add(EventsModel(
-    imgeAssetPath: "assets/second.png",
-    date: "Jan 12, 2019",
-    desc: "Art & Meet in Street Plaza",
-    address: "Galaxyfields, Sector 22, Faridabad",
-  ));
 
-  events.add(EventsModel(
-    imgeAssetPath: "assets/music_event.png",
-    date: "Jan 12, 2019",
-    desc: "Youth Music in Gwalior",
-    address: "Galaxyfields, Sector 22, Faridabad",
-  ));
+  if (response.statusCode == 200) {
+    List<dynamic> jsonData = json.decode(response.body);
 
-  return events;
+    final currentDate = DateTime.now();
+
+    List<EventsModel> upcomingEvents = [];
+    List<EventsModel> ongoingEvents = [];
+
+    // Parsing the API response and filtering events
+    jsonData.forEach((event) {
+      DateTime eventStartDate = DateTime.parse(event['eventDate']);
+      DateTime eventEndDate = DateTime.parse(event['eventEndDate']);
+
+      if (eventStartDate.isAfter(currentDate)) {
+        // Upcoming events
+        upcomingEvents.add(EventsModel.fromJson(event));
+        print(upcomingEvents);
+      } else if (eventStartDate.isBefore(currentDate) && eventEndDate.isAfter(currentDate)) {
+        // Ongoing events
+        ongoingEvents.add(EventsModel.fromJson(event));
+        print(ongoingEvents);
+      }
+    });
+
+    // Combine both upcoming and ongoing events
+    return [...ongoingEvents, ...upcomingEvents];
+  } else {
+    throw Exception('Failed to load events');
+  }
 }

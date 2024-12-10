@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:navyuvakmandar/data/data.dart';
-
 import 'models/date_model.dart';
 import 'models/event_type_model.dart';
 import 'models/events_model.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'models/side_menu.dart';
-
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -22,19 +22,31 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime _selectedDay = DateTime.now();
   String formattedDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
   String formattedCurrentDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
+  List<EventsModel> ongoingEvents = [];
+  List<EventsModel> upcomingEvents = [];
+  DateTime _focusedDay = DateTime.now();
 
   @override
   void initState() {
     super.initState();
     dates = getDates();
     eventsType = getEventTypes();
-    events = getEvents();
-
+    fetchEvents();
     _selectedDay = DateTime.now();
     formattedDate = DateFormat('dd-MM-yyyy').format(_selectedDay);
   }
 
-
+  Future<void> fetchEvents() async {
+    try {
+      List<EventsModel> fetchedEvents = await getEvents();
+      setState(() {
+        events = fetchedEvents;
+        print("Events fetched: $events");
+      });
+    } catch (e) {
+      print("Error fetching events: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,20 +82,17 @@ class _HomeScreenState extends State<HomeScreen> {
               // Add your notification button functionality here
             },
           ),
-
         ],
       ),
       body: Container(
         child: Stack(
           children: <Widget>[
             Container(
-              decoration: BoxDecoration(
-               color: Color(0xff102733)
-              ),
+              decoration: BoxDecoration(color: Color(0xff102733)),
             ),
             SingleChildScrollView(
               child: Container(
-                padding: EdgeInsets.symmetric(vertical: 60,horizontal: 30),
+                padding: EdgeInsets.symmetric(vertical: 60, horizontal: 30),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
@@ -92,26 +101,32 @@ class _HomeScreenState extends State<HomeScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
-                            Text("Hello, Neil!", style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 21
-                            ),),
-                            SizedBox(height: 6,),
-                            Text("Let's explore what’s happening nearby",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 15
-                            ),)
+                            Text(
+                              "Hello, Neil!",
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 21),
+                            ),
+                            SizedBox(
+                              height: 6,
+                            ),
+                            Text(
+                              "Let's explore what’s happening nearby",
+                              style: TextStyle(
+                                  color: Colors.white, fontSize: 15),
+                            )
                           ],
                         ),
                         Spacer(),
                       ],
                     ),
-                    SizedBox(height: 20,),
+                    SizedBox(
+                      height: 20,
+                    ),
 
                     /// Dates
-                      Container(
+                    Container(
                       height: 60,
                       child: ListView.builder(
                         itemCount: dates.length + 1, // Add 1 for the "More" option
@@ -125,12 +140,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                 showModalBottomSheet(
                                   context: context,
                                   builder: (BuildContext context) {
-                                    return YourCalendarWidget(
+                                    return CalendarBottomSheet(
+                                      selectedDay: _selectedDay,
+                                      focusedDay: _focusedDay,
                                       onDaySelected: (selectedDay, focusedDay) {
                                         setState(() {
-                                          _selectedDay = _selectedDay;
-                                          formattedDate = DateFormat('dd-MM-yyyy').format(selectedDay);
+                                          _selectedDay = selectedDay;
+                                          formattedDate = DateFormat('dd-MM-yyyy')
+                                              .format(selectedDay);
+                                          _focusedDay = focusedDay;
                                         });
+                                        Navigator.pop(context); // Close the calendar after selection
                                       },
                                     );
                                   },
@@ -158,36 +178,23 @@ class _HomeScreenState extends State<HomeScreen> {
                             // Regular date items
                             return GestureDetector(
                               onTap: () {
-                                // Toggle the selected state of the date
                                 setState(() {
                                   formattedDate = dates[index].date;
                                 });
                               },
                               child: DateTile(
-                                 weekDay: dates[index].weekDay,
-                                 date: dates[index].date,
-                                 isSelected: formattedDate == dates[index].date || (formattedDate == '' && dates[index].date == formattedCurrentDate),
-                                 currentDate: formattedCurrentDate,
+                                weekDay: dates[index].weekDay,
+                                date: dates[index].date,
+                                isSelected: formattedDate == dates[index].date ||
+                                    (formattedDate == '' &&
+                                        dates[index].date == formattedCurrentDate),
+                                currentDate: formattedCurrentDate,
                               ),
                             );
                           }
                         },
                       ),
                     ),
-
-                    /// Display events for selected dates
-
-                    /// Display events for selected dates
-                    SizedBox(height: 16),
-                    Text("Selected Date: $formattedDate", style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    )),
-                    SizedBox(height: 16),
-                    Text("Events for Selected Dates", style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                    )),
 
                     Container(
                       child: ListView.builder(
@@ -208,34 +215,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
 
-                      /// Events
-                    SizedBox(height: 16,),
-                    Text("All Events", style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20
-                    ),),
-                    SizedBox(height: 16,),
-                    Container(
-                      height: 100,
-                      child: ListView.builder(
-                        itemCount: eventsType.length,
-                          shrinkWrap: true,
-                          scrollDirection: Axis.horizontal,
-                          itemBuilder: (context, index){
-                          return EventTile(
-                            imgAssetPath: eventsType[index].imgAssetPath,
-                            eventType: eventsType[index].eventType,
-                          );
-                          }),
+                    /// Events
+                    SizedBox(
+                      height: 16,
                     ),
-
-                    /// Popular Events
-                    SizedBox(height: 16,),
-                    Text("Popular Events", style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20
-                    ),),
-                    Container(
+                    Text(
+                      "All Events",
+                      style: TextStyle(color: Colors.white, fontSize: 20),
+                    ),
+                    SizedBox(
+                      height: 16,
+                    ),
+                     Container(
                       child: ListView.builder(
                         itemCount: events.length,
                           shrinkWrap: true,
@@ -248,18 +239,41 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
 
                           }),
+                    ),
+
+                    /// Popular Events
+                    SizedBox(
+                      height: 16,
+                    ),
+                    Text(
+                      "Popular Events",
+                      style: TextStyle(color: Colors.white, fontSize: 20),
+                    ),
+                    Container(
+                      child: ListView.builder(
+                        itemCount: events.length,
+                        shrinkWrap: true,
+                        itemBuilder: (context, index) {
+                          return PopularEventTile(
+                            desc: events[index].desc,
+                            imgeAssetPath: events[index].imgeAssetPath,
+                            date: events[index].date,
+                            address: events[index].address,
+                          );
+                        },
+                      ),
                     )
                   ],
                 ),
               ),
             ),
-
           ],
         ),
       ),
     );
   }
 }
+
 class DateTile extends StatelessWidget {
   final String weekDay;
   final String date;
@@ -273,9 +287,9 @@ class DateTile extends StatelessWidget {
     required this.currentDate,
   });
 
+
   @override
   Widget build(BuildContext context) {
-    print('Current Date: $currentDate');
     return Container(
       margin: EdgeInsets.only(right: 10),
       padding: EdgeInsets.symmetric(horizontal: 10),
@@ -304,57 +318,65 @@ class DateTile extends StatelessWidget {
               color: isSelected ? Colors.black : Colors.white,
               fontWeight: FontWeight.w600,
             ),
-          )
+          ),
         ],
       ),
     );
   }
 }
 
-class EventTile extends StatelessWidget {
+class CalendarBottomSheet extends StatelessWidget {
+  final DateTime selectedDay;
+  final DateTime focusedDay;
+  final Function(DateTime, DateTime) onDaySelected;
 
-   String imgAssetPath;
-  String eventType;
-  EventTile({
-    required this.imgAssetPath,
-    required this.eventType,
+  CalendarBottomSheet({
+    required this.selectedDay,
+    required this.focusedDay,
+    required this.onDaySelected,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      alignment: Alignment.center,
-      padding: EdgeInsets.symmetric(horizontal: 30),
-      margin: EdgeInsets.only(right: 16),
-      decoration: BoxDecoration(
-        color: Color(0xff29404E),
-        borderRadius: BorderRadius.circular(12)
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Image.asset(imgAssetPath, height: 27,),
-          SizedBox(height: 12,),
-          Text(eventType, style: TextStyle(
-            color: Colors.white
-          ),)
-        ],
+      height: 400,
+      padding: EdgeInsets.all(16),
+      child: TableCalendar(
+        firstDay: DateTime.utc(2020, 1, 1),
+        lastDay: DateTime.utc(2030, 12, 31),
+        focusedDay: focusedDay,
+        selectedDayPredicate: (day) {
+          return isSameDay(selectedDay, day);
+        },
+        onDaySelected: onDaySelected,
+        calendarStyle: CalendarStyle(
+          todayDecoration: BoxDecoration(
+            color: Colors.orange,
+            shape: BoxShape.circle,
+          ),
+          selectedDecoration: BoxDecoration(
+            color: Colors.blue,
+            shape: BoxShape.circle,
+          ),
+        ),
       ),
     );
   }
 }
 
-class PopularEventTile extends StatelessWidget {
 
-   String desc;
-  String date;
-  String address;
-  String imgeAssetPath;
+
+class PopularEventTile extends StatelessWidget {
+  final String desc;
+  final String imgeAssetPath; // This should now be treated as an image URL
+  final String date;
+  final String address;
+
   PopularEventTile({
-    required this.address,
-    required this.date,
-    required this.imgeAssetPath,
     required this.desc,
+    required this.imgeAssetPath, // This will hold the network image URL
+    required this.date,
+    required this.address,
   });
 
   @override
@@ -406,30 +428,52 @@ class PopularEventTile extends StatelessWidget {
               ),
             ),
           ),
-          ClipRRect(
-              borderRadius: BorderRadius.only(topRight: Radius.circular(8), bottomRight: Radius.circular(8)),
-              child: Image.asset(imgeAssetPath, height: 100,width: 120, fit: BoxFit.cover,)),
+         ClipRRect(
+  borderRadius: BorderRadius.only(
+    topRight: Radius.circular(8),
+    bottomRight: Radius.circular(8),
+  ),
+  child: Image.network(
+    imgeAssetPath, // This should be the URL for the network image
+    height: 100,
+    width: 120,
+    fit: BoxFit.cover,
+    errorBuilder: (context, error, stackTrace) {
+      return Image.asset(
+        'assets/no_image.jpg', // Fallback image if the network fails
+        height: 100,
+        width: 120,
+        fit: BoxFit.cover,
+      );
+    },
+  ),
+),
+
         ],
       ),
     );
   }
 }
+class EventTile extends StatelessWidget {
+  final String imgAssetPath;
+  final String eventType;
 
-class YourCalendarWidget extends StatelessWidget {
-  final Function(DateTime, DateTime) onDaySelected;
-
-  YourCalendarWidget({required this.onDaySelected});
+  EventTile({
+    required this.imgAssetPath,
+    required this.eventType,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return TableCalendar(
-      firstDay: DateTime(DateTime.now().year, 1, 1),
-      lastDay: DateTime(DateTime.now().year, 12, 31),
-      focusedDay: DateTime.now(),
-      calendarFormat: CalendarFormat.month,
-      onDaySelected: (selectedDay, focusedDay) {
-        onDaySelected(selectedDay, focusedDay);
-      },
+    return Card(
+      margin: EdgeInsets.only(right: 10),
+      child: Column(
+        children: [
+          Image.asset(imgAssetPath, height: 60, width: 60),
+          SizedBox(height: 8),
+          Text(eventType),
+        ],
+      ),
     );
   }
 }

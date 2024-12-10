@@ -19,6 +19,7 @@ class LoginPage extends StatelessWidget {
     // Replace 'api/login' with the actual login endpoint
 
     try {
+      print("inside try");
       final ioc = new HttpClient();
         ioc.badCertificateCallback =
             (X509Certificate cert, String host, int port) => true;
@@ -26,7 +27,7 @@ class LoginPage extends StatelessWidget {
       final response = await http.post(
         new Uri.https("10.0.2.2:7069","/api/user/login"),
         body: jsonEncode({"username": username, "password": password}),
-        headers: {'Content-Type': 'application/json'}
+        headers: {'Content-Type': 'application/json'},
       );
 
       print(response);
@@ -45,6 +46,7 @@ class LoginPage extends StatelessWidget {
         print('Login failed: ${response.body}');
       }
     } catch (error) {
+      print('inside catch');
       // Handle network errors or other exceptions
       print('An error occurred: $error');
     }

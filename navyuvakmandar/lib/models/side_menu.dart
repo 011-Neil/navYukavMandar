@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:http/http.dart';
 import 'dart:async';
 import 'dart:convert';
-
+import 'package:navyuvakmandar/models/aarti_calendar.dart';
 import 'package:navyuvakmandar/models/login_screen.dart';
 
 class SideMenu extends StatefulWidget {
@@ -79,7 +79,12 @@ class SideMenu extends StatefulWidget {
                 iconColor: Colors.white,
                 leading: Icon(Icons.calendar_today),
                 title: Text('Aarti Calendar'),
-                onTap: null
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => CalendarPage()),
+                  );
+                },
               ),
               ListTile(
                 textColor: Colors.white,
